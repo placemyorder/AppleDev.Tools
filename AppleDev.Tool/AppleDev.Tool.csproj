@@ -2,17 +2,18 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFrameworks>net7.0</TargetFrameworks>
+        <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AssemblyName>apple</AssemblyName>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>apple</ToolCommandName>
         <RollForward>Major</RollForward>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     </PropertyGroup>
 
     <PropertyGroup>
-        <PackageId>AppleDev.Tools</PackageId>
+        <PackageId>MShenoy83.AppleDev.Tools</PackageId>
         <Title>.NET Apple Developer Tools</Title>
         <PackageDescription>.NET tool for Apple developement related tasks</PackageDescription>
         <Authors>Redth</Authors>
@@ -33,8 +34,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Spectre.Console.Cli" Version="0.46.0" />
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+        <PackageReference Include="Spectre.Console.Cli" Version="0.48.0" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     </ItemGroup>
 
     <ItemGroup>
