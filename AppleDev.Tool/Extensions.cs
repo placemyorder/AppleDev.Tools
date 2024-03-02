@@ -33,12 +33,15 @@ static class Extensions
 	public static void SetOutputVariable(this ICommand _, string key, string value, bool isSecret = false)
 	{
 		var ci = _.GetCI();
+		var file = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
 
 		if (ci == CIType.GitHub)
 		{
-			var file = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
-			var content = System.IO.File.ReadAllText(file);
-			System.IO.File.WriteAllText(file, content + $"{key}={value}" + "\n");
+			if (file != null)
+			{
+				var content = File.ReadAllText(file);
+				File.WriteAllText(file, content + $"{key}={value}" + "\n");
+			}
 		}
 		else if (ci == CIType.Azure)
 		{

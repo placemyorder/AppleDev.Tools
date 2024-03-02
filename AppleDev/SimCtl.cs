@@ -371,7 +371,7 @@ public class SimCtl : XCRun
 				}
 			}
 
-			if (deviceType.Devices.Any())
+			if (deviceType != null && deviceType.Devices.Count != 0)
 				results.Add(deviceType);
 		}
 

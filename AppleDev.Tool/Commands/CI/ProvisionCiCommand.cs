@@ -87,9 +87,9 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 			var tmpFile = Path.GetTempFileName();
 			if (certificateData is not null)
 			{
-				File.WriteAllBytes(tmpFile, certificateData);
+				await File.WriteAllBytesAsync(tmpFile, certificateData);
 
-				var x509 = new X509Certificate2(certificateData);
+				var x509 = new X509Certificate2(certificateData,settings.CertificatePassphrase);
 				var certificateFriendlyName = x509.FriendlyName;
 
 				if (!string.IsNullOrEmpty(certificateFriendlyName))
@@ -210,7 +210,7 @@ public class ProvisionCiCommandSettings : CommandSettings
 	
 	[Description("Keychain name to import into")]
 	[CommandOption("--keychain <keychain>")]
-	public string Keychain { get; set; }
+	public string? Keychain { get; set; }
 
 	[Description("Keychain password")]
 	[CommandOption("--keychain-password <password>")]
