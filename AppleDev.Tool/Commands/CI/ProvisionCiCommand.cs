@@ -2,6 +2,7 @@
 using System.Runtime.ConstrainedExecution;
 using System.Security.Cryptography.X509Certificates;
 using AppleAppStoreConnect;
+using Polly;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -19,6 +20,9 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 		var keychainPassword = settings.KeychainPassword ?? keychainName;
 		
 		var certificateData = settings.GetBytesFromFileOrEnvironmentOrBase64String(settings.Certificate);
+		var rootCaCertificateData = settings.GetBytesFromFileOrEnvironmentOrBase64String(settings.RootCACertificate);
+		var intermediateCertificateData =
+			settings.GetBytesFromFileOrEnvironmentOrBase64String(settings.IntermediateCertificate);
 
 		if (!settings.ImportCert())
 		{
@@ -85,10 +89,10 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 
 			AnsiConsole.Write($"Importing Certificate into {keychainFile.FullName} (AllowAnyAppRead: {allowAny})...");
 
-			var tmpFile = Path.GetTempFileName();
+			var tmpP12File = Path.GetTempPath() + Guid.NewGuid() + ".p12"; ;
 			if (certificateData is not null)
 			{
-				await File.WriteAllBytesAsync(tmpFile, certificateData);
+				await File.WriteAllBytesAsync(tmpP12File, certificateData);
 
 				var x509 = new X509Certificate2(certificateData,settings.CertificatePassphrase);
 				var certificateFriendlyName = x509.FriendlyName;
@@ -96,11 +100,11 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 				if (!string.IsNullOrEmpty(certificateFriendlyName))
 				{
 					this.SetOutputVariable("AppleCertificateFriendlyName", certificateFriendlyName);
-					this.SetOutputVariable("AppleCertificateFile", tmpFile);
+					this.SetOutputVariable("AppleCertificateFile", tmpP12File);
 				}
 			}
 
-			var importResult = await keychain.ImportPkcs12Async(tmpFile, settings.CertificatePassphrase, keychainFile.FullName, allowAny, data.CancellationToken).ConfigureAwait(false);
+			var importResult = await keychain.ImportPkcs12Async(tmpP12File, settings.CertificatePassphrase, keychainFile.FullName, allowAny, data.CancellationToken).ConfigureAwait(false);
 
 			if (!importResult.Success)
 			{
@@ -124,6 +128,38 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 					partitionResult.OutputFailure("Set Partition List Failed");
 					return 1;
 				}
+				
+				//Verify Certificate
+				if (rootCaCertificateData is not null && intermediateCertificateData is not null)
+				{
+					AnsiConsole.WriteLine($" Begin Certificate Verification.");
+					//1. Import both Root certificates
+					var tmpRootCaFile = Path.GetTempPath() + Guid.NewGuid() + ".cer";
+					await File.WriteAllBytesAsync(tmpRootCaFile, rootCaCertificateData);
+					await keychain.ImportRootCertAsync(tmpRootCaFile, keychainFile.FullName, data.CancellationToken)
+						.ConfigureAwait(false);
+					var tmpIntermediateFile = Path.GetTempPath() + Guid.NewGuid() + ".cer";
+					await File.WriteAllBytesAsync(tmpIntermediateFile, intermediateCertificateData);
+					await keychain.ImportRootCertAsync(tmpIntermediateFile, keychainFile.FullName, data.CancellationToken)
+						.ConfigureAwait(false);
+					AnsiConsole.WriteLine($" Root & Intermediate Certificates Extracted and imported.");
+					
+					//2. Extract Pem from P12
+					var openSsl = new OpenSsl();
+					var tempPemfile = Path.GetTempPath() + Guid.NewGuid() + ".pem";
+					await openSsl.ExtractPemFile(tmpP12File, settings.CertificatePassphrase, tempPemfile,
+							data.CancellationToken)
+						.ConfigureAwait(false);
+					AnsiConsole.WriteLine($" PEM Certificate Extracted from P12.");
+					
+					//3. Verify Pem
+					await Task.Delay(TimeSpan.FromSeconds(120));
+					await keychain.VerifyCertificate(tempPemfile, keychainFile.FullName,
+						data.CancellationToken).ConfigureAwait(false);
+					AnsiConsole.WriteLine($" Certificate Verified.");
+				}
+				
+				
 
 				AnsiConsole.WriteLine($" Done.");
 			}
@@ -200,6 +236,14 @@ public class ProvisionCiCommandSettings : CommandSettings
 	[Description("Base64 encoded certificate data, certificate filename, or environment variable name with base 64 encoded certificate data")]
 	[CommandOption("--certificate")]
 	public string Certificate { get; set; } = string.Empty;
+	
+	[Description("Base64 encoded root ca certificate data, certificate filename, or environment variable name with base 64 encoded certificate data")]
+	[CommandOption("--rootcacertificate")]
+	public string RootCACertificate { get; set; } = string.Empty;
+	
+	[Description("Base64 encoded root ww authority data, certificate filename, or environment variable name with base 64 encoded certificate data")]
+	[CommandOption("--intermediatecertificate")]
+	public string IntermediateCertificate { get; set; } = string.Empty;
 
 	[Description("Certificate's passphrase")]
 	[CommandOption("--certificate-passphrase <passphrase>")]
