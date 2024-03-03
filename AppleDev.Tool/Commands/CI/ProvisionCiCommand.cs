@@ -1,8 +1,6 @@
 ﻿using System.ComponentModel;
-using System.Runtime.ConstrainedExecution;
 using System.Security.Cryptography.X509Certificates;
 using AppleAppStoreConnect;
-using Polly;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
