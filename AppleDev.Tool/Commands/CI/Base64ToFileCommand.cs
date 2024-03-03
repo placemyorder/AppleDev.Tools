@@ -58,7 +58,7 @@ public class Base64ToFileCommandSettings : CommandSettings
 
         try
         {
-            var _ = Convert.FromBase64String(Base64);
+            var _ = this.GetBytesFromFileOrEnvironmentOrBase64String(Base64);
         }
         catch
         {
