@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using AppleAppStoreConnect;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -30,6 +29,23 @@ public class DeprovisionCiCommand : AsyncCommand<DeprovisionCiCommandSettings>
 				return 1;
 			}
 
+			if (!string.IsNullOrEmpty(settings.DefaultKeychain))
+			{
+				var defaultKeychain = new Keychain();
+				var defaultKeychainFile = defaultKeychain.Locate(settings.DefaultKeychain);
+				AnsiConsole.Write($"Setting Default Keychain {defaultKeychainFile.FullName}...");
+				var setDefResult = await keychain
+					.SetDefaultKeychainAsync(defaultKeychainFile.FullName, data.CancellationToken)
+					.ConfigureAwait(false);
+
+				if (!setDefResult.Success)
+				{
+					AnsiConsole.WriteLine();
+					setDefResult.OutputFailure("Setting Default Keychain Failed");
+					return 1;
+				}
+			}
+
 			AnsiConsole.WriteLine($" Done.");
 		}
 
@@ -38,7 +54,11 @@ public class DeprovisionCiCommand : AsyncCommand<DeprovisionCiCommandSettings>
 }
 public class DeprovisionCiCommandSettings : CommandSettings
 {
-	[Description("Keychain name to import into")]
+	[Description("Keychain name to remove")]
 	[CommandOption("--keychain <keychain>")]
 	public string Keychain { get; set; } = string.Empty;
+	
+	[Description("Keychain name to set as default")]
+	[CommandOption("--defaultkeychain <keychain>")]
+	public string DefaultKeychain { get; set; } = string.Empty;
 }

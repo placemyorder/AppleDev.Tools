@@ -54,19 +54,16 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 				AnsiConsole.WriteLine($" Done.");
 			}
 
-			if (settings.SetAsDefaultKeychain)
-			{
-				AnsiConsole.Write($"Setting Default Keychain {keychainFile.FullName}...");
-				var setDefResult = await keychain
-					.SetDefaultKeychainAsync(keychainFile.FullName, data.CancellationToken)
-					.ConfigureAwait(false);
+			AnsiConsole.Write($"Setting Default Keychain {keychainFile.FullName}...");
+			var setDefResult = await keychain
+				.SetDefaultKeychainAsync(keychainFile.FullName, data.CancellationToken)
+				.ConfigureAwait(false);
 
-				if (!setDefResult.Success)
-				{
-					AnsiConsole.WriteLine();
-					setDefResult.OutputFailure("Setting Default Keychain Failed");
-					return 1;
-				}
+			if (!setDefResult.Success)
+			{
+				AnsiConsole.WriteLine();
+				setDefResult.OutputFailure("Setting Default Keychain Failed");
+				return 1;
 			}
 			
 
@@ -230,12 +227,7 @@ public class ProvisionCiCommandSettings : CommandSettings
 	[Description("Allows any app read permission")]
 	[CommandOption("--keychain-disallow-any-app-read")]
 	public bool DisallowAllowAnyAppRead { get; set; }
-
-	[Description("Set the newly created keychain as default keychain")]
-	[CommandOption("--keychain-set-as-default")]
-	public bool SetAsDefaultKeychain { get; set; } = false;
-
-
+	
 	[Description("App bundle identifier(s) to match provisioning profiles for")]
 	[CommandOption("--bundle-identifier <BUNDLE_IDENTIFIER>")]
 	public string[] BundleIdentifiers { get; set; } = new string[0];
