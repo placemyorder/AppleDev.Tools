@@ -105,7 +105,8 @@ public class Keychain
         {
             args.Add("set-key-partition-list");
             args.Add("-S");
-            args.Add("apple-tool:,apple:");
+            args.Add("apple-tool:,apple:,codesign:");
+            args.Add("-s");
             args.Add("-k");
             args.Add(password);
             args.Add(Locate(keychain).FullName);
