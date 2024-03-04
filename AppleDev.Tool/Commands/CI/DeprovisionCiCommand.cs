@@ -19,16 +19,6 @@ public class DeprovisionCiCommand : AsyncCommand<DeprovisionCiCommandSettings>
 
 		if (keychainFile.Exists && !keychainFile.Name.Equals(AppleDev.Keychain.DefaultKeychain))
 		{
-			AnsiConsole.Write($"Deleting Keychain {keychainFile.Name}...");
-			var createResult = await keychain.DeleteKeychainAsync(keychainFile.FullName, data.CancellationToken).ConfigureAwait(false);
-
-			if (!createResult.Success)
-			{
-				AnsiConsole.WriteLine();
-				createResult.OutputFailure("Deleting Keychain Failed");
-				return 1;
-			}
-
 			if (!string.IsNullOrEmpty(settings.DefaultKeychain))
 			{
 				var defaultKeychain = new Keychain();
@@ -45,6 +35,15 @@ public class DeprovisionCiCommand : AsyncCommand<DeprovisionCiCommandSettings>
 					return 1;
 				}
 			}
+			AnsiConsole.Write($"Deleting Keychain {keychainFile.Name}...");
+			var createResult = await keychain.DeleteKeychainAsync(keychainFile.FullName, data.CancellationToken).ConfigureAwait(false);
+
+			if (!createResult.Success)
+			{
+				AnsiConsole.WriteLine();
+				createResult.OutputFailure("Deleting Keychain Failed");
+				return 1;
+			}
 
 			AnsiConsole.WriteLine($" Done.");
 		}
@@ -60,5 +59,5 @@ public class DeprovisionCiCommandSettings : CommandSettings
 	
 	[Description("Keychain name to set as default")]
 	[CommandOption("--defaultkeychain <keychain>")]
-	public string DefaultKeychain { get; set; } = string.Empty;
+	public string DefaultKeychain { get; set; } = AppleDev.Keychain.DefaultKeychain;
 }

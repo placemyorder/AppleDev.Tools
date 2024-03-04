@@ -52,9 +52,10 @@ public class Keychain
 
     public Task<ProcessResult> SetDefaultKeychainAsync(string keychain = DefaultKeychain,
         CancellationToken cancellationToken = default)
-        => WrapSecurityAsync(new[] { "default-keychain", "-s", Locate(keychain).FullName }, cancellationToken);
+        => WrapSecurityAsync(new[] { "default-keychain", "-d", "user", "-s", Locate(keychain).FullName },
+            cancellationToken);
 
-    public Task<ProcessResult> ImportRootCertAsync(string file, string keychain = DefaultKeychain,
+    public Task<ProcessResult> ImportCertificateAsync(string file, string keychain = DefaultKeychain,
         CancellationToken cancellationToken = default)
         => WrapSecurityAsync(args =>
         {
