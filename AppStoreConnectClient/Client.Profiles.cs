@@ -19,6 +19,13 @@ partial class AppStoreConnectClient
 		}
 	}
 
+	public async Task<BundleIdIndividualResponse> GetRelatedBundleIdAsync(string profileId, CancellationToken cancellationToken = default)
+	{
+		var qs = new QueryStringBuilder();
+		return await RequestAsync<BundleIdIndividualResponse>($"{PROFILES_TYPE}/{profileId}/bundleId", cancellationToken).ConfigureAwait(false)
+			?? new BundleIdIndividualResponse();
+	}
+	
 	public async Task<ProfileResponse> ListProfilesAsync(
 		string[]? filterId = null,
 		string[]? filterName = null,

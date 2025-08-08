@@ -1,6 +1,13 @@
 ﻿using AppleDev.Tool.Commands;
+using Serilog;
 using Spectre.Console;
 using Spectre.Console.Cli;
+
+Log.Logger = new LoggerConfiguration()
+	.MinimumLevel.Information()
+	.Enrich.FromLogContext()
+	.WriteTo.Console()
+	.CreateLogger();
 
 var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (sender, eventArgs) =>
