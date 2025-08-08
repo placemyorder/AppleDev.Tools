@@ -5,7 +5,10 @@ on:
   push:
   release:
     types: [published]
-
+concurrency:
+  group: appledev-workflows
+  cancel-in-progress: false
+  
 jobs:
   build:
     name: Build
