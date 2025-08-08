@@ -5,7 +5,10 @@ on:
   push:
   release:
     types: [published]
-
+concurrency:
+  group: appledev-workflows
+  cancel-in-progress: false
+  
 jobs:
   build:
     name: Build
@@ -57,4 +60,4 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Push NuGet
         run: |
-          dotnet nuget push NuGet/*.nupkg --source https://nuget.pkg.github.com/placemyorder/index.json --api-key ${{ secrets.NUGET_ORG_API_KEY }}
+          dotnet nuget push *.nupkg --source https://nuget.pkg.github.com/placemyorder/index.json --api-key ${{ secrets.NUGET_ORG_API_KEY }}
