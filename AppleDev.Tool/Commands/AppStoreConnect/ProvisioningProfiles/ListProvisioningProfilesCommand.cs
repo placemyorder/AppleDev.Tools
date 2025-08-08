@@ -26,13 +26,16 @@ public class ListProvisioningProfilesCommand : AsyncCommand<ListProvisioningProf
 
 		foreach (var profile in profiles.Data)
 		{
+			var bundleIds = await appStoreConnect.GetRelatedBundleIdAsync(profile.Id).ConfigureAwait(false);
 			// Get the Bundle ID for the profile
-			var profileBundleId = profiles.IncludedBundleIds?.FirstOrDefault()?.Attributes;
+			var profileBundleId = bundleIds.Data.Attributes;
 
 			if (settings.BundleIds.Length > 0)
 			{
-				if (profileBundleId is not null && settings.BundleIds.Any(b => profileBundleId?.IdentifierMatches(b) ?? false))
+				if (settings.BundleIds.Any(b => profileBundleId?.IdentifierMatches(b) ?? false))
+				{
 					profileResults.Add(new ProvisioningProfile(profile.Attributes, profileBundleId));
+				}
 			}
 			else
 			{

@@ -50,6 +50,15 @@ public class BundleId : Item<BundleIdAttributes>
 		=> Relationships["profiles"];
 }
 
+public class BundleIdIndividualResponse : IndividualResponse<BundleId, BundleIdAttributes>
+{
+	public BundleIdIndividualResponse() { }
+
+	[JsonIgnore]
+	public IEnumerable<Profile> IncludedProfiles
+		=> GetIncluded<Profile>();
+}
+
 public class BundleIdResponse : ListResponse<BundleId, BundleIdAttributes>
 {
 	public BundleIdResponse() { }

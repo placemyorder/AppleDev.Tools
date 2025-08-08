@@ -16,8 +16,26 @@ public partial class AppStoreConnectClient
 	public readonly AppStoreConnectConfiguration Configuration;
 
 
-	HttpClient http = new HttpClient();
+	HttpClient http = new HttpClient(new MetaDataHandler(
+#if DEBUG
+		true
+#else
+		false
+#endif
+		));
 
+	Task<T?> RequestAsync<T>(string path, CancellationToken cancellationToken = default)
+	{
+		var token = Configuration.AccessToken;
+
+		http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+		return http.GetFromJsonAsync<T>(
+			UrlBase.TrimEnd('/') + $"/{path}",
+			JsonSerializerOptions,
+			cancellationToken);
+	}
+	
 	Task<T?> RequestAsync<T>(string path, QueryStringBuilder queryString, CancellationToken cancellationToken = default)
 	{
 		var token = Configuration.AccessToken;

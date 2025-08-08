@@ -221,13 +221,13 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 
             foreach (var profile in profiles.Data)
             {
+                var bundleId = await appStoreConnect.GetRelatedBundleIdAsync(profile.Id).ConfigureAwait(false);
                 // Get the Bundle ID for the profile
-                var profileBundleId = profiles.IncludedBundleIds?.FirstOrDefault()?.Attributes;
+                var profileBundleId = bundleId.Data.Attributes;
 
                 if (settings.BundleIdentifiers.Length > 0)
                 {
-                    if (profileBundleId is not null &&
-                        settings.BundleIdentifiers.Any(b => profileBundleId?.IdentifierMatches(b) ?? false))
+                    if (settings.BundleIdentifiers.Any(b => profileBundleId?.IdentifierMatches(b) ?? false))
                         profileResults.Add(new ProvisioningProfile(profile.Attributes, profileBundleId));
                 }
                 else
