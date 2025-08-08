@@ -1,5 +1,6 @@
 ﻿using CliWrap;
 using System.Text;
+using Claunia.PropertyList;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -83,23 +84,83 @@ public class Xcode
 		}
 	}
 
-	static (string Path, bool Selected)? GetXcodeInfo(string path, bool selected)
+	static XcodeInfo? GetXcodeInfo(string path, bool selected)
 	{
-		var versionPlist = Path.Combine(path, "Contents", "version.plist");
-
-		if (File.Exists(versionPlist))
+		var versionPlistFiles = new string[] {
+			Path.Combine(path, "Contents", "version.plist"),
+			Path.Combine(path, "Contents", "Info.plist")
+		};
+		
+		foreach (var plistFile in versionPlistFiles)
 		{
-			return (path, selected);
-		}
-		else
-		{
-			var infoPlist = Path.Combine(path, "Contents", "Info.plist");
-
-			if (File.Exists(infoPlist))
+			if (File.Exists(plistFile))
 			{
-				return (path, selected);
+				var version = ParseVersion(plistFile);
+				return new XcodeInfo(path, selected, version);
 			}
 		}
+
 		return null;
+	}
+	
+	public async Task<XcodeInfo?> LocateBestAsync(CancellationToken cancellationToken = default)
+	{
+		var all = await LocateAllAsync(cancellationToken).ConfigureAwait(false);
+
+		var selected = all.FirstOrDefault(x => x.Selected);
+		if (selected is not null)
+			return selected;
+
+		return all.OrderByDescending(x => x.Version).FirstOrDefault();
+	}
+
+	public async Task<IReadOnlyList<XcodeInfo>> LocateAllAsync(CancellationToken cancellationToken = default)
+	{
+		if (!OperatingSystem.IsMacOS())
+			return Array.Empty<XcodeInfo>();
+
+		var results = new List<XcodeInfo>();
+		var paths = new List<string>();
+
+		var selected = await GetSelectedXCodePathAsync(cancellationToken).ConfigureAwait(false);
+
+		if (!string.IsNullOrEmpty(selected))
+			paths.Add(selected);
+
+		if (!cancellationToken.IsCancellationRequested)
+		{
+			var others = FindXCodeInstalls();
+
+			if (others.Any())
+				paths.AddRange(others);
+
+			foreach (var p in paths.Distinct())
+			{
+				if (cancellationToken.IsCancellationRequested)
+					break;
+
+				var info = GetXcodeInfo(p, selected == p);
+				if (info != null)
+					results.Add(info);
+			}
+		}
+
+		return results;
+	}
+	
+	static Version ParseVersion(string path, string versionKey = "CFBundleShortVersionString")
+	{
+		var version = new Version();
+		var plist = PropertyListParser.Parse(path);
+		if (plist is NSDictionary dict)
+		{
+			if (dict.TryGetValue(versionKey, out var nsVersion)
+			    && nsVersion is NSString nsStringVersion)
+			{
+				if (!Version.TryParse(nsStringVersion.Content, out version))
+					version = new();
+			}
+		}
+		return version;
 	}
 }

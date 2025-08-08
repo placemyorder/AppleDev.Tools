@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Runtime.ConstrainedExecution;
 using System.Security.Cryptography.X509Certificates;
 using AppleAppStoreConnect;
 using Spectre.Console;
@@ -21,7 +22,7 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
         var rootCaCertificateData = settings.GetBytesFromFileOrEnvironmentOrBase64String(settings.RootCACertificate);
         var intermediateCertificateData =
             settings.GetBytesFromFileOrEnvironmentOrBase64String(settings.IntermediateCertificate);
-
+        
         if (!settings.ImportCert())
         {
             AnsiConsole.Write($"Certificate not specified or found, skipping...");
@@ -68,7 +69,6 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
                 return 1;
             }
 
-
             AnsiConsole.WriteLine($" Done.");
 
             AnsiConsole.Write($"Unlocking Keychain {keychainFile.FullName}...");
@@ -91,13 +91,15 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 
             AnsiConsole.Write($"Importing Certificate into {keychainFile.FullName} (AllowAnyAppRead: {allowAny})...");
 
-            var tmpP12File = Path.GetTempPath() + Guid.NewGuid() + ".p12";
-            ;
+            var tmpP12File = Path.GetTempFileName();
             if (certificateData is not null)
             {
                 await File.WriteAllBytesAsync(tmpP12File, certificateData);
 
-                var x509 = new X509Certificate2(certificateData, settings.CertificatePassphrase);
+                // Use passphrase if specified
+                var x509 = !string.IsNullOrWhiteSpace(settings.CertificatePassphrase)
+                    ? new X509Certificate2(certificateData, settings.CertificatePassphrase)
+                    : new X509Certificate2(certificateData, (string)null!);
                 var certificateFriendlyName = x509.FriendlyName;
 
                 if (!string.IsNullOrEmpty(certificateFriendlyName))
@@ -169,12 +171,21 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 
                     AnsiConsole.WriteLine($" Certificate Verified.");
                 }
-
-
+                
                 AnsiConsole.WriteLine($" Done.");
             }
         }
 
+        if (settings.InstallApiPrivateKey)
+        {
+            var apiPrivateKey = settings.GetStringFromFileOrEnvironmentOrString(settings.ApiPrivateKey);
+
+            var xcrun = new XCRun();
+            xcrun.PrivateKeysDirectory = settings.ApiPrivateKeyDirectory;
+
+            var keyPath = await xcrun.InstallPrivateKey(settings.ApiKeyId, apiPrivateKey!);
+            AnsiConsole.WriteLine($"Saved API Key to: {keyPath.FullName}");
+        }
 
         if (settings.InstallProfiles())
         {
@@ -235,9 +246,12 @@ public class ProvisionCiCommand : AsyncCommand<ProvisionCiCommandSettings>
 
             if (profileResults.Count > 0)
             {
-                // Install profiles
-                await appStoreConnect.InstallProfilesAsync(profileResults.Select(p => p.Profile), settings.ProfilePath)
-                    .ConfigureAwait(false);
+                foreach (var p in profileResults)
+                {
+                    var profileData = Convert.FromBase64String(p.Profile.ProfileContent);
+                    await ProvisioningProfiles.InstallProfileAsync(profileData, settings.ProfilePath)
+                        .ConfigureAwait(false);
+                }
             }
 
             AnsiConsole.WriteLine($"Done - {profileResults.Count} Provisioning Profiles Installed.");
@@ -291,6 +305,7 @@ public class ProvisionCiCommandSettings : CommandSettings
     [CommandOption("--keychain-disallow-any-app-read")]
     public bool DisallowAllowAnyAppRead { get; set; }
 
+
     [Description("App bundle identifier(s) to match provisioning profiles for")]
     [CommandOption("--bundle-identifier <BUNDLE_IDENTIFIER>")]
     public string[] BundleIdentifiers { get; set; } = new string[0];
@@ -329,6 +344,19 @@ public class ProvisionCiCommandSettings : CommandSettings
     public string ApiPrivateKey { get; set; }
         = Environment.GetEnvironmentVariable("APP_STORE_CONNECT_PRIVATE_KEY") ?? string.Empty;
 
+    [Description(
+        "If true, installs the --api-private-key AppStoreConnect Private Key (.p8) (if specified) to the --api-private-key-dir location.  You are responsible for removing this key if you do not want it to persist.")]
+    [CommandOption("--install-api-private-key")]
+    public bool InstallApiPrivateKey { get; set; }
+        = false;
+
+    [Description(
+        "Specifies a path to save the AppStoreConnect Private Key (.p8) file to if --install-api-private-key is true.  Default directory path is \"~/private_keys/\".")]
+    [CommandOption("--api-private-key-dir <directory_path>")]
+    public DirectoryInfo ApiPrivateKeyDirectory { get; set; }
+        = new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "private_keys"));
+
     public override ValidationResult Validate()
     {
         if (this.InstallProfiles())
@@ -341,6 +369,15 @@ public class ProvisionCiCommandSettings : CommandSettings
 
             if (string.IsNullOrEmpty(ApiPrivateKey))
                 return ValidationResult.Error("--api-private-key is required");
+        }
+
+        if (this.InstallApiPrivateKey)
+        {
+            if (string.IsNullOrEmpty(ApiPrivateKey))
+                return ValidationResult.Error("--api-private-key is required");
+
+            if (string.IsNullOrEmpty(ApiKeyId))
+                return ValidationResult.Error("--api-key-id is required");
         }
 
         return base.Validate();
